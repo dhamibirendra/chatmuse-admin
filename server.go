@@ -15,23 +15,33 @@ func main() {
 	e := echo.New()
 
 	// the file server for rice. "app" is the folder where the files come from.
-	assetHandler := http.FileServer(rice.MustFindBox("public").HTTPBox())
-	// serves the index.html from rice
-	e.GET("/", echo.WrapHandler(assetHandler))
+	publicAssetHandler := http.FileServer(rice.MustFindBox("public").HTTPBox())
 
-	e.Static("/static", "static")
+	// serves the index.html from rice
+	e.GET("/", echo.WrapHandler(publicAssetHandler))
+
+	staticAssetHandler := http.FileServer(rice.MustFindBox("static").HTTPBox())
+
+	e.GET("/static/*", echo.WrapHandler(http.StripPrefix("/static/", staticAssetHandler)))
 	e.POST("/upload", createProduct)
 	e.GET("/file", func(c echo.Context) error {
-		id, err := strconv.Atoi(c.QueryParam("id"))
-		if err != nil {
-			// do something sensible
-		}
+		id, _ := strconv.Atoi(c.QueryParam("id"))
 		product := products[id]
+		if product == nil {
+			return c.JSON(http.StatusNotFound, false)
+		}
 		return c.File(product.FilePath)
 	})
 
 	e.GET("/list", func(c echo.Context) error {
-		return c.JSON(http.StatusOK, products)
+		keys := make([]product, len(products))
+
+		i := 0
+		for _, v := range products {
+			keys[i] = *v
+			i++
+		}
+		return c.JSON(http.StatusOK, keys)
 	})
 
 	e.Logger.Fatal(e.Start(":8081"))
@@ -45,7 +55,8 @@ type (
 		Price       float64 `json:"price"`
 		FileName    string  `json:"fileName"`
 		WebUrl      string  `json:"url"`
-		FilePath    string  `json:"-" `
+		//ignore this field from JSON parsing
+		FilePath string `json:"-" `
 	}
 )
 
