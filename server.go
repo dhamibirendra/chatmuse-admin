@@ -22,8 +22,12 @@ func main() {
 	e.Static("/static", "static")
 	e.POST("/upload", createProduct)
 	e.GET("/file", func(c echo.Context) error {
-		fileName := c.QueryParam("id")
-		return c.File(fileName)
+		id, err := strconv.Atoi(c.QueryParam("id"))
+		if err != nil {
+			// do something sensible
+		}
+		product := products[id]
+		return c.File(product.FilePath)
 	})
 
 	e.GET("/list", func(c echo.Context) error {
@@ -41,6 +45,7 @@ type (
 		Price       float64 `json:"price"`
 		FileName    string  `json:"fileName"`
 		WebUrl      string  `json:"url"`
+		FilePath    string  `json:"-" `
 	}
 )
 
@@ -82,8 +87,9 @@ func createProduct(c echo.Context) error {
 	}
 
 	newFileName := fmt.Sprintf("file-%d", p.ID)
+	fullFilePath := homePath + "/" + newFileName
 	// Destination
-	dst, err := os.Create(homePath + "/" + newFileName)
+	dst, err := os.Create(fullFilePath)
 	if err != nil {
 		return err
 	}
@@ -99,6 +105,7 @@ func createProduct(c echo.Context) error {
 	p.Price = price
 	p.WebUrl = url
 	p.FileName = newFileName
+	p.FilePath = fullFilePath
 	if err := c.Bind(p); err != nil {
 		return err
 	}
