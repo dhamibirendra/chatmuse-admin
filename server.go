@@ -9,10 +9,14 @@ import (
 	"os"
 	"io"
 	"fmt"
+	"time"
+	"math/rand"
 )
 
 func main() {
+
 	e := echo.New()
+	rand.Seed(time.Now().UnixNano())
 
 	// the file server for rice. "app" is the folder where the files come from.
 	publicAssetHandler := http.FileServer(rice.MustFindBox("public").HTTPBox())
@@ -55,14 +59,16 @@ type (
 		Price       float64 `json:"price"`
 		FileName    string  `json:"fileName"`
 		WebUrl      string  `json:"url"`
+		Payload     string  `json:"payload"`
 		//ignore this field from JSON parsing
 		FilePath string `json:"-" `
 	}
 )
 
 var (
-	products = map[int]*product{}
-	seq      = 1
+	products    = map[int]*product{}
+	seq         = 1
+	letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 )
 
 func createProduct(c echo.Context) error {
@@ -117,6 +123,7 @@ func createProduct(c echo.Context) error {
 	p.WebUrl = url
 	p.FileName = newFileName
 	p.FilePath = fullFilePath
+	p.Payload = RandString()
 	if err := c.Bind(p); err != nil {
 		return err
 	}
@@ -125,4 +132,12 @@ func createProduct(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, p)
 
+}
+
+func RandString() string {
+	b := make([]rune, 8)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
 }
