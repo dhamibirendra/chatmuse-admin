@@ -59,6 +59,7 @@ type (
 		Price       float64 `json:"price"`
 		FileName    string  `json:"fileName"`
 		WebUrl      string  `json:"url"`
+		ImageUrl    string  `json:"imageUrl"`
 		Payload     string  `json:"payload"`
 		//ignore this field from JSON parsing
 		FilePath string `json:"-" `
@@ -77,6 +78,7 @@ func createProduct(c echo.Context) error {
 
 	title := c.FormValue("title")
 	description := c.FormValue("description")
+	imageUrl := c.FormValue("imageUrl")
 
 	price, parseErr := strconv.ParseFloat(c.FormValue("price"), 32)
 	if parseErr != nil {
@@ -121,6 +123,7 @@ func createProduct(c echo.Context) error {
 	p.Description = description
 	p.Price = price
 	p.WebUrl = url
+	p.ImageUrl = imageUrl
 	p.FileName = newFileName
 	p.FilePath = fullFilePath
 	p.Payload = RandString()
