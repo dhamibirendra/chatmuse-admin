@@ -86,37 +86,40 @@ func createProduct(c echo.Context) error {
 	}
 	url := c.FormValue("url")
 
+	p := &product{
+		ID: seq,
+	}
+
 	//-----------
 	// Read file
 	//-----------
 
 	// Source
 	file, err := c.FormFile("file")
-	if err != nil {
-		return err
-	}
-	src, err := file.Open()
-	if err != nil {
-		return err
-	}
-	defer src.Close()
+	if err == nil {
+		src, err := file.Open()
+		if err != nil {
+			return err
+		}
+		defer src.Close()
 
-	p := &product{
-		ID: seq,
-	}
+		newFileName := fmt.Sprintf("file-%d", p.ID)
+		fullFilePath := homePath + "/" + newFileName
 
-	newFileName := fmt.Sprintf("file-%d", p.ID)
-	fullFilePath := homePath + "/" + newFileName
-	// Destination
-	dst, err := os.Create(fullFilePath)
-	if err != nil {
-		return err
-	}
-	defer dst.Close()
+		// Destination
+		dst, err := os.Create(fullFilePath)
+		if err != nil {
+			return err
+		}
+		defer dst.Close()
 
-	// Copy
-	if _, err = io.Copy(dst, src); err != nil {
-		return err
+		// Copy
+		if _, err = io.Copy(dst, src); err != nil {
+			return err
+		}
+
+		p.FileName = newFileName
+		p.FilePath = fullFilePath
 	}
 
 	p.Title = title
@@ -124,8 +127,6 @@ func createProduct(c echo.Context) error {
 	p.Price = price
 	p.WebUrl = url
 	p.ImageUrl = imageUrl
-	p.FileName = newFileName
-	p.FilePath = fullFilePath
 	p.Payload = RandString()
 	if err := c.Bind(p); err != nil {
 		return err
