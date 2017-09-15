@@ -2,7 +2,7 @@ package main
 
 import (
 	"net/http"
-
+	"html/template"
 	"github.com/labstack/echo"
 	"github.com/GeertJohan/go.rice"
 	"strconv"
@@ -11,23 +11,32 @@ import (
 	"fmt"
 	"time"
 	"math/rand"
+	"gopkg.in/gomail.v2"
 )
 
 func main() {
 
 	e := echo.New()
-	rand.Seed(time.Now().UnixNano())
 
 	// the file server for rice. "app" is the folder where the files come from.
 	publicAssetHandler := http.FileServer(rice.MustFindBox("public").HTTPBox())
 
+	renderer := &TemplateRenderer{
+		templates: template.Must(template.ParseGlob("public/*.html")),
+	}
+	e.Renderer = renderer
+	rand.Seed(time.Now().UnixNano())
+
 	// serves the index.html from rice
 	e.GET("/", echo.WrapHandler(publicAssetHandler))
+	e.GET("/settings", showSettingPage)
 
 	staticAssetHandler := http.FileServer(rice.MustFindBox("static").HTTPBox())
 
 	e.GET("/static/*", echo.WrapHandler(http.StripPrefix("/static/", staticAssetHandler)))
 	e.POST("/upload", createProduct)
+	e.POST("/settings", updateSetting)
+	e.POST("/booking", booking)
 	e.GET("/file", func(c echo.Context) error {
 		id, _ := strconv.Atoi(c.QueryParam("id"))
 		product := products[id]
@@ -64,13 +73,33 @@ type (
 		//ignore this field from JSON parsing
 		FilePath string `json:"-" `
 	}
+
+	bookingMsg struct {
+		Message string `json:"message"`
+	}
 )
 
 var (
 	products    = map[int]*product{}
 	seq         = 1
 	letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	alertEmail  = "sajat.shrestha@gmail.com"
+	fromEmail   = "chatmuse2018@gmail.com"
 )
+
+func updateSetting(c echo.Context) error {
+	alertEmail = c.FormValue("email")
+	return renderSettingPage(c, "Settings updated successfully")
+}
+
+func booking(c echo.Context) (err error) {
+	b := new(bookingMsg)
+	if err = c.Bind(b); err != nil {
+		return
+	}
+	sendEmail("New booking done", b.Message)
+	return c.JSON(http.StatusOK, b)
+}
 
 func createProduct(c echo.Context) error {
 
@@ -134,7 +163,9 @@ func createProduct(c echo.Context) error {
 	products[p.ID] = p
 	seq++
 
-	return c.JSON(http.StatusOK, p)
+	return c.Render(http.StatusOK, "index.html", map[string]interface{}{
+		"message": "Product added successfully",
+	})
 
 }
 
@@ -144,4 +175,47 @@ func RandString() string {
 		b[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
 	return string(b)
+}
+
+// TemplateRenderer is a custom html/template renderer for Echo framework
+type TemplateRenderer struct {
+	templates *template.Template
+}
+
+// Render renders a template document
+func (t *TemplateRenderer) Render(w io.Writer, name string, data interface{}, c echo.Context) error {
+
+	// Add global methods if data is a map
+	if viewContext, isMap := data.(map[string]interface{}); isMap {
+		viewContext["reverse"] = c.Echo().Reverse
+	}
+
+	return t.templates.ExecuteTemplate(w, name, data)
+}
+
+func showSettingPage(c echo.Context) error {
+	return renderSettingPage(c, "")
+}
+
+func renderSettingPage(c echo.Context, message string) error {
+	return c.Render(http.StatusOK, "settings.html", map[string]interface{}{
+		"email":   alertEmail,
+		"message": message,
+	})
+}
+
+func sendEmail(subject string, message string) {
+	m := gomail.NewMessage()
+
+	m.SetHeader("From", fromEmail)
+	m.SetHeader("To", alertEmail)
+
+	m.SetHeader("Subject", subject)
+	m.SetBody("text/html", message)
+
+	d := gomail.NewDialer("smtp.gmail.com", 587, fromEmail, "sajat@123")
+
+	if err := d.DialAndSend(m); err != nil {
+		panic(err)
+	}
 }

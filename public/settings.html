@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Chatmuse Admin portal</title>
+    <link href="/static/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+<div class="container">
+    <div class="page-title">
+        <h1>Chatmuse Admin</h1>
+        <p class="lead">Settings</p>
+        <hr/>
+    </div>
+
+
+    {{ index . "message"}}
+
+    <form action="/settings" method="POST" enctype="multipart/form-data">
+        <div class="form-group">
+            Alert email: <input value='{{index . "email"}}' type="text" class="form-control" name="email" cols="30"
+                                rows="10">
+        </div>
+        <div class="form-group">
+            <input type="submit" class="btn btn-primary pull-right"/>
+        </div>
+    </form>
+</div>
+
+</body>
+</html>
+
